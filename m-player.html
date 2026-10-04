@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Retro Web Music Player</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome for classic icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap');
+    
+    body {
+      font-family: 'Fredoka', 'Noto Sans TC', sans-serif;
+      background-color: #e5e7eb;
+    }
+
+    /* Custom Vinyl Rotation Animation */
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    
+    .spin-active {
+      animation: spin 8s linear infinite;
+    }
+
+    .spin-paused {
+      animation-play-state: paused;
+    }
+
+    /* Neu-retro bordered styling */
+    .retro-border {
+      border: 2px solid #2d2d2d;
+      box-shadow: 3px 3px 0px #2d2d2d;
+    }
+
+    .retro-border-sm {
+      border: 1.5px solid #2d2d2d;
+      box-shadow: 2px 2px 0px #2d2d2d;
+    }
+
+    .retro-button {
+      border: 2px solid #2d2d2d;
+      box-shadow: 2.5px 2.5px 0px #2d2d2d;
+      transition: all 0.1s ease;
+    }
+
+    .retro-button:active {
+      transform: translate(2px, 2px);
+      box-shadow: 0.5px 0.5px 0px #2d2d2d;
+    }
+
+    /* Range Input Customization */
+    input[type=range] {
+      -webkit-appearance: none;
+      background: transparent;
+    }
+
+    input[type=range]:focus {
+      outline: none;
+    }
+
+    /* Track Styles */
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 8px;
+      cursor: pointer;
+      background: #d1d5db;
+      border-radius: 4px;
+      border: 1px solid #4b5563;
+    }
+
+    /* Volume Green Slider Thumb */
+    .volume-slider::-webkit-slider-thumb {
+      height: 18px;
+      width: 18px;
+      border-radius: 50%;
+      background: #22c55e;
+      border: 2px solid #15803d;
+      cursor: pointer;
+      -webkit-appearance: none;
+      margin-top: -5.5px;
+      box-shadow: 1px 1px 0px #15803d;
+    }
+
+    /* Progress Seek Thumb */
+    .seek-slider::-webkit-slider-thumb {
+      height: 14px;
+      width: 14px;
+      border-radius: 50%;
+      background: #ef4444;
+      border: 1.5px solid #991b1b;
+      cursor: pointer;
+      -webkit-appearance: none;
+      margin-top: -3.5px;
+    }
+
+    /* Hide scrollbar for playlist container */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4 sm:p-6 select-none">
+
+  <!-- Outer Smartphone / Player Shell -->
+  <div class="w-full max-w-sm bg-[#f3f4f6] rounded-[36px] p-5 border-4 border-[#2d2d2d] shadow-[8px_8px_0px_#1f2937]">
+    
+    <!-- Header Utility Bar -->
+    <div class="flex justify-between items-center mb-4 px-2 text-xs text-gray-500 font-bold">
+      <div class="flex items-center space-x-1">
+        <i class="fa-solid fa-music text-red-500"></i>
+        <span>RETRO AUDIO</span>
+      </div>
+      <label class="cursor-pointer hover:text-gray-800 transition-colors flex items-center gap-1 bg-gray-200 px-2 py-0.5 rounded-full border border-gray-400">
+        <i class="fa-solid fa-upload"></i>
+        <span class="text-[10px]">載入MP3</span>
+        <input type="file" id="audio-uploader" accept="audio/*" class="hidden" multiple />
+      </label>
+    </div>
+
+    <!-- Album Art / Vinyl Disc Container -->
+    <div class="flex flex-col items-center justify-center">
+      <div class="relative w-40 h-40 rounded-full bg-gradient-to-tr from-gray-300 via-pink-100 to-indigo-100 p-1 flex items-center justify-center border-2 border-[#2d2d2d] shadow-md">
+        <!-- Vinyl Record Disk -->
+        <div id="vinyl-record" class="w-36 h-36 rounded-full bg-[#1e1e1e] flex items-center justify-center relative shadow-inner border border-gray-700">
+          <!-- Concentric Record Grooves -->
+          <div class="absolute inset-2 border border-gray-800 rounded-full pointer-events-none opacity-60"></div>
+          <div class="absolute inset-5 border border-gray-800 rounded-full pointer-events-none opacity-60"></div>
+          <div class="absolute inset-8 border border-gray-800 rounded-full pointer-events-none opacity-60"></div>
+          
+          <!-- Center Label Artwork -->
+          <div class="w-16 h-16 rounded-full bg-gradient-to-br from-orange-200 to-amber-300 border-2 border-white flex items-center justify-center shadow">
+            <!-- Center Spindle Hole -->
+            <div id="album-icon-container" class="w-12 h-12 rounded-full bg-orange-400 flex items-center justify-center text-white border border-orange-500">
+              <i id="album-icon" class="fa-solid fa-basketball text-2xl text-amber-900"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Song Title & Subtitle -->
+      <h2 id="song-title" class="mt-3 text-2xl font-bold text-red-600 tracking-wide text-center">Airball</h2>
+      <p id="song-artist" class="text-xs text-gray-500 font-medium text-center">Background Music</p>
+    </div>
+
+    <!-- Status Pill Bar -->
+    <div class="mt-4 bg-[#e8e8e6] rounded-2xl p-2.5 border-2 border-[#2d2d2d] flex justify-between items-center text-xs font-semibold px-4 shadow-inner">
+      <div class="flex flex-col items-start w-1/3">
+        <span class="text-[10px] text-gray-400 uppercase tracking-wider">狀態</span>
+        <span id="status-text" class="text-red-500 font-bold tracking-wider">STOPPED</span>
+      </div>
+      <div class="flex flex-col items-center w-1/3">
+        <span class="text-[10px] text-gray-400 uppercase tracking-wider">曲目</span>
+        <span id="track-counter" class="text-gray-700 font-bold">1 / 6</span>
+      </div>
+      <div class="flex flex-col items-end w-1/3">
+        <span class="text-[10px] text-gray-400 uppercase tracking-wider">時間</span>
+        <span id="time-display" class="text-gray-700 font-mono font-bold">0:00</span>
+      </div>
+    </div>
+
+    <!-- Progress Scrubber -->
+    <div class="mt-4 px-1">
+      <div class="flex justify-between text-[11px] font-mono text-gray-500 mb-1">
+        <span id="current-time">0:00</span>
+        <span id="total-duration">3:35</span>
+      </div>
+      <input type="range" id="seek-bar" value="0" min="0" max="100" class="seek-slider w-full cursor-pointer">
+    </div>
+
+    <!-- Main Transport Control Buttons -->
+    <div class="mt-5 flex justify-center items-center gap-2">
+      <!-- Previous / Rewind (⏮️) -->
+      <button id="btn-prev" class="retro-button w-10 h-10 rounded-full bg-white flex items-center justify-center text-gray-800 hover:bg-gray-100">
+        <i class="fa-solid fa-backward-step text-sm"></i>
+      </button>
+
+      <!-- Fast Rewind (⏪) -->
+      <button id="btn-rewind" class="retro-button w-10 h-10 rounded-full bg-white flex items-center justify-center text-gray-800 hover:bg-gray-100">
+        <i class="fa-solid fa-backward text-xs"></i>
+      </button>
+
+      <!-- Play / Pause Toggle Button (Center Big) -->
+      <button id="btn-play-pause" class="retro-button w-12 h-12 rounded-full bg-orange-500 text-white flex items-center justify-center shadow-lg hover:bg-orange-600 text-lg">
+        <i id="play-icon" class="fa-solid fa-play ml-0.5"></i>
+      </button>
+
+      <!-- Fast Forward (⏩) -->
+      <button id="btn-ff" class="retro-button w-10 h-10 rounded-full bg-white flex items-center justify-center text-gray-800 hover:bg-gray-100">
+        <i class="fa-solid fa-forward text-xs"></i>
+      </button>
+
+      <!-- Next (⏭️) -->
+      <button id="btn-next" class="retro-button w-10 h-10 rounded-full bg-white flex items-center justify-center text-gray-800 hover:bg-gray-100">
+        <i class="fa-solid fa-forward-step text-sm"></i>
+      </button>
+    </div>
+
+    <!-- Distinct Stop Button (■ 停止) -->
+    <div class="mt-3 flex justify-center">
+      <button id="btn-stop" class="retro-button bg-[#e2e8f0] px-6 py-1.5 rounded-full text-xs font-bold text-gray-800 flex items-center gap-1.5 hover:bg-gray-300">
+        <span class="text-red-500 text-xs">■</span>
+        <span>停止</span>
+      </button>
+    </div>
+
+    <!-- Volume Control Slider Bar -->
+    <div class="mt-4 bg-[#e8e8e6] rounded-2xl p-2.5 border-2 border-[#2d2d2d] flex items-center gap-3 px-3">
+      <i id="volume-icon" class="fa-solid fa-volume-high text-gray-500 text-xs w-4"></i>
+      <input type="range" id="volume-bar" min="0" max="100" value="70" class="volume-slider w-full">
+      <span id="volume-percentage" class="text-xs font-bold text-gray-600 font-mono w-8 text-right">70%</span>
+    </div>
+
+    <!-- Playlist Card -->
+    <div class="mt-4 bg-[#fbfbfa] rounded-2xl border-2 border-[#2d2d2d] overflow-hidden shadow-sm">
+      <!-- Playlist Header -->
+      <div class="bg-[#f3f0e6] px-3 py-2 border-b-2 border-[#2d2d2d] flex items-center gap-2">
+        <i class="fa-solid fa-music text-amber-800 text-xs"></i>
+        <span class="text-xs font-bold text-amber-900 tracking-wide">播放清單</span>
+      </div>
+
+      <!-- Scrollable Track List -->
+      <div id="playlist-container" class="max-h-48 overflow-y-auto no-scrollbar divide-y divide-gray-200 text-xs">
+        <!-- Playlist items injected via JS -->
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Playlist Dataset initialized to match requested features
+    const initialPlaylist = [
+      { id: 0, title: "Airball", artist: "Background Music", duration: "3:35", durationSec: 215, icon: "fa-basketball", color: "bg-orange-400", type: "synth", synthType: "upbeat" },
+      { id: 1, title: "Elysees", artist: "Relaxing Ambient", duration: "2:20", durationSec: 140, icon: "fa-leaf", color: "bg-emerald-400", type: "synth", synthType: "chill" },
+      { id: 2, title: "Moon", artist: "Lofi Beats", duration: "3:41", durationSec: 221, icon: "fa-moon", color: "bg-indigo-400", type: "synth", synthType: "lofi" },
+      { id: 3, title: "Nothing", artist: "Acoustic Soft", duration: "4:06", durationSec: 246, icon: "fa-cloud", color: "bg-sky-400", type: "synth", synthType: "soft" },
+      { id: 4, title: "Rain", artist: "Ambient Sound", duration: "3:15", durationSec: 195, icon: "fa-cloud-rain", color: "bg-blue-400", type: "synth", synthType: "rain" },
+      { id: 5, title: "Breeze", artist: "Piano Melody", duration: "2:50", durationSec: 170, icon: "fa-wind", color: "bg-teal-400", type: "synth", synthType: "piano" }
+    ];
+
+    let playlist = [...initialPlaylist];
+    let currentIndex = 0;
+    let isPlaying = false;
+    let currentTimeSec = 0;
+    let timerInterval = null;
+
+    // Web Audio Synthesizer State
+    let audioCtx = null;
+    let synthOscillator = null;
+    let synthGain = null;
+    let synthInterval = null;
+    
+    // HTML5 Audio element for uploaded custom files
+    let customAudio = new Audio();
+
+    // DOM Elements
+    const vinylRecord = document.getElementById('vinyl-record');
+    const songTitle = document.getElementById('song-title');
+    const songArtist = document.getElementById('song-artist');
+    const albumIcon = document.getElementById('album-icon');
+    const albumIconContainer = document.getElementById('album-icon-container');
+    const statusText = document.getElementById('status-text');
+    const trackCounter = document.getElementById('track-counter');
+    const timeDisplay = document.getElementById('time-display');
+    const currentTimeEl = document.getElementById('current-time');
+    const totalDurationEl = document.getElementById('total-duration');
+    const seekBar = document.getElementById('seek-bar');
+    const playIcon = document.getElementById('play-icon');
+    const volumeBar = document.getElementById('volume-bar');
+    const volumePercentage = document.getElementById('volume-percentage');
+    const volumeIcon = document.getElementById('volume-icon');
+    const playlistContainer = document.getElementById('playlist-container');
+
+    // Controls
+    const btnPlayPause = document.getElementById('btn-play-pause');
+    const btnStop = document.getElementById('btn-stop');
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
+    const btnRewind = document.getElementById('btn-rewind');
+    const btnFF = document.getElementById('btn-ff');
+    const audioUploader = document.getElementById('audio-uploader');
+
+    // Format Seconds to MM:SS
+    function formatTime(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    }
+
+    // Initialize Web Audio API
+    function initAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    // Render Playlist DOM Items
+    function renderPlaylist() {
+      playlistContainer.innerHTML = '';
+      playlist.forEach((track, index) => {
+        const isSelected = index === currentIndex;
+        const item = document.createElement('div');
+        item.className = `flex items-center justify-between px-3 py-2.5 cursor-pointer transition-colors ${
+          isSelected 
+            ? 'bg-orange-100/80 border-l-4 border-orange-500 font-bold text-orange-900' 
+            : 'hover:bg-gray-100 text-gray-700'
+        }`;
+        
+        item.innerHTML = `
+          <div class="flex items-center gap-3 truncate">
+            <span class="text-gray-400 text-[10px] w-4 font-mono">${(index + 1).toString().padStart(2, '0')}</span>
+            <span class="truncate ${isSelected ? 'text-orange-600 font-bold' : ''}">${track.title}</span>
+          </div>
+          <span class="text-gray-400 font-mono text-[10px] ml-2">${track.duration}</span>
+        `;
+
+        item.addEventListener('click', () => {
+          selectTrack(index);
+          playAudio();
+        });
+
+        playlistContainer.appendChild(item);
+      });
+    }
+
+    // Update Player UI according to current track
+    function updatePlayerUI() {
+      const currentTrack = playlist[currentIndex];
+      songTitle.textContent = currentTrack.title;
+      songArtist.textContent = currentTrack.artist;
+      trackCounter.textContent = `${currentIndex + 1} / ${playlist.length}`;
+      totalDurationEl.textContent = currentTrack.duration;
+      seekBar.max = currentTrack.durationSec;
+
+      // Update Album Center Icon
+      albumIcon.className = `fa-solid ${currentTrack.icon} text-2xl text-amber-900`;
+      albumIconContainer.className = `w-12 h-12 rounded-full ${currentTrack.color} flex items-center justify-center text-white border border-amber-500`;
+
+      renderPlaylist();
+    }
+
+    // Synthetic Audio Melody Generator for non-external audio playing
+    function startSynthMelody(type) {
+      stopSynthMelody();
+      if (!audioCtx) return;
+
+      const volumeVal = volumeBar.value / 100;
+      synthGain = audioCtx.createGain();
+      synthGain.gain.setValueAtTime(volumeVal * 0.15, audioCtx.currentTime);
+      synthGain.connect(audioCtx.destination);
+
+      const scaleFrequencies = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25]; // Pentatonic notes
+      let noteIndex = 0;
+
+      synthInterval = setInterval(() => {
+        if (!isPlaying) return;
+        try {
+          const osc = audioCtx.createOscillator();
+          const noteGain = audioCtx.createGain();
+          
+          osc.type = type === 'lofi' ? 'triangle' : 'sine';
+          const freq = scaleFrequencies[(noteIndex + Math.floor(Math.random() * 3)) % scaleFrequencies.length];
+          osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+          noteGain.gain.setValueAtTime(volumeVal * 0.1, audioCtx.currentTime);
+          noteGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.8);
+
+          osc.connect(noteGain);
+          noteGain.connect(synthGain);
+
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.8);
+
+          noteIndex = (noteIndex + 1) % scaleFrequencies.length;
+        } catch (e) {
+          console.error(e);
+        }
+      }, 500);
+    }
+
+    function stopSynthMelody() {
+      if (synthInterval) {
+        clearInterval(synthInterval);
+        synthInterval = null;
+      }
+    }
+
+    // Play Audio Logic
+    function playAudio() {
+      initAudioContext();
+      const track = playlist[currentIndex];
+      isPlaying = true;
+
+      statusText.textContent = "PLAYING";
+      playIcon.className = "fa-solid fa-pause";
+      vinylRecord.classList.add('spin-active');
+      vinylRecord.classList.remove('spin-paused');
+
+      if (track.type === 'custom') {
+        stopSynthMelody();
+        customAudio.src = track.url;
+        customAudio.currentTime = currentTimeSec;
+        customAudio.volume = volumeBar.value / 100;
+        customAudio.play();
+      } else {
+        customAudio.pause();
+        startSynthMelody(track.synthType);
+      }
+
+      startTimer();
+    }
+
+    // Pause Audio Logic
+    function pauseAudio() {
+      isPlaying = false;
+      statusText.textContent = "PAUSED";
+      playIcon.className = "fa-solid fa-play ml-0.5";
+      vinylRecord.classList.add('spin-paused');
+
+      stopSynthMelody();
+      customAudio.pause();
+      stopTimer();
+    }
+
+    // Stop Audio Logic
+    function stopAudio() {
+      isPlaying = false;
+      currentTimeSec = 0;
+      statusText.textContent = "STOPPED";
+      playIcon.className = "fa-solid fa-play ml-0.5";
+      vinylRecord.classList.remove('spin-active', 'spin-paused');
+
+      stopSynthMelody();
+      customAudio.pause();
+      customAudio.currentTime = 0;
+      stopTimer();
+
+      updateTimeDisplays();
+    }
+
+    // Timer Loop
+    function startTimer() {
+      stopTimer();
+      timerInterval = setInterval(() => {
+        const track = playlist[currentIndex];
+        if (currentTimeSec < track.durationSec) {
+          currentTimeSec++;
+          updateTimeDisplays();
+        } else {
+          // Track Finished -> Go to next
+          nextTrack();
+        }
+      }, 1000);
+    }
+
+    function stopTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+    }
+
+    function updateTimeDisplays() {
+      const formatted = formatTime(currentTimeSec);
+      timeDisplay.textContent = formatted;
+      currentTimeEl.textContent = formatted;
+      seekBar.value = currentTimeSec;
+    }
+
+    // Track Navigation
+    function selectTrack(index) {
+      stopAudio();
+      currentIndex = index;
+      currentTimeSec = 0;
+      updatePlayerUI();
+    }
+
+    function prevTrack() {
+      const newIndex = (currentIndex - 1 + playlist.length) % playlist.length;
+      selectTrack(newIndex);
+      if (isPlaying || statusText.textContent === "PLAYING") {
+        playAudio();
+      }
+    }
+
+    function nextTrack() {
+      const newIndex = (currentIndex + 1) % playlist.length;
+      selectTrack(newIndex);
+      playAudio();
+    }
+
+    // Fast Rewind / Fast Forward 5 seconds
+    function rewindFiveSec() {
+      currentTimeSec = Math.max(0, currentTimeSec - 5);
+      if (playlist[currentIndex].type === 'custom') {
+        customAudio.currentTime = currentTimeSec;
+      }
+      updateTimeDisplays();
+    }
+
+    function fastForwardFiveSec() {
+      const track = playlist[currentIndex];
+      currentTimeSec = Math.min(track.durationSec, currentTimeSec + 5);
+      if (playlist[currentIndex].type === 'custom') {
+        customAudio.currentTime = currentTimeSec;
+      }
+      updateTimeDisplays();
+    }
+
+    // Event Listeners
+    btnPlayPause.addEventListener('click', () => {
+      if (isPlaying) {
+        pauseAudio();
+      } else {
+        playAudio();
+      }
+    });
+
+    btnStop.addEventListener('click', stopAudio);
+    btnPrev.addEventListener('click', prevTrack);
+    btnNext.addEventListener('click', nextTrack);
+    btnRewind.addEventListener('click', rewindFiveSec);
+    btnFF.addEventListener('click', fastForwardFiveSec);
+
+    // Seek Bar Scrubbing
+    seekBar.addEventListener('input', (e) => {
+      currentTimeSec = parseInt(e.target.value, 10);
+      if (playlist[currentIndex].type === 'custom') {
+        customAudio.currentTime = currentTimeSec;
+      }
+      updateTimeDisplays();
+    });
+
+    // Volume Control
+    volumeBar.addEventListener('input', (e) => {
+      const val = e.target.value;
+      volumePercentage.textContent = `${val}%`;
+      customAudio.volume = val / 100;
+
+      if (synthGain && audioCtx) {
+        synthGain.gain.setValueAtTime((val / 100) * 0.15, audioCtx.currentTime);
+      }
+
+      // Update icon dynamically
+      if (val == 0) {
+        volumeIcon.className = "fa-solid fa-volume-xmark text-gray-500 text-xs w-4";
+      } else if (val < 50) {
+        volumeIcon.className = "fa-solid fa-volume-low text-gray-500 text-xs w-4";
+      } else {
+        volumeIcon.className = "fa-solid fa-volume-high text-gray-500 text-xs w-4";
+      }
+    });
+
+    // Local MP3 File Upload Handler
+    audioUploader.addEventListener('change', (e) => {
+      const files = Array.from(e.target.files);
+      if (files.length === 0) return;
+
+      files.forEach(file => {
+        const url = URL.createObjectURL(file);
+        const tempAudio = new Audio(url);
+        
+        tempAudio.onloadedmetadata = () => {
+          const durationSec = Math.floor(tempAudio.duration);
+          const durationFormatted = formatTime(durationSec);
+
+          const customTrack = {
+            id: playlist.length,
+            title: file.name.replace(/\.[^/.]+$/, ""),
+            artist: "Local Upload",
+            duration: durationFormatted,
+            durationSec: durationSec,
+            icon: "fa-compact-disc",
+            color: "bg-purple-400",
+            type: "custom",
+            url: url
+          };
+
+          playlist.push(customTrack);
+          updatePlayerUI();
+        };
+      });
+    });
+
+    // On Load Initialization
+    window.onload = () => {
+      updatePlayerUI();
+    };
+  </script>
+</body>
+</html>

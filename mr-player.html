@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bright Cyber Music & Taiwan Radio Player</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Noto+Sans+TC:wght@400;500;700;900&family=Outfit:wght@400;600;800&display=swap');
+    
+    body {
+      font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+      background: linear-gradient(135deg, #f0f4ff 0%, #e8eeff 50%, #fef0f5 100%);
+      color: #1e293b;
+      min-height: 100vh;
+    }
+
+    .font-brand {
+      font-family: 'Fredoka', sans-serif;
+    }
+
+    /* Bright Glassmorphic Card */
+    .glass-card {
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(20px);
+      border: 1.5px solid rgba(255, 255, 255, 0.95);
+      box-shadow: 0 20px 40px -15px rgba(148, 163, 184, 0.25), 0 0 15px rgba(255, 255, 255, 0.8);
+    }
+
+    .glass-pill {
+      background: rgba(241, 245, 249, 0.9);
+      border: 1px solid rgba(226, 232, 240, 0.8);
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
+    }
+
+    /* Custom Bright Buttons */
+    .bright-btn {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04), 0 2px 4px rgba(0, 0, 0, 0.02);
+      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .bright-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 18px rgba(99, 102, 241, 0.15);
+      border-color: #cbd5e1;
+    }
+    .bright-btn:active {
+      transform: translateY(1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Play Main Button */
+    .btn-play-grad {
+      background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 50%, #fbc531 100%);
+      box-shadow: 0 8px 20px rgba(255, 107, 107, 0.35);
+      transition: all 0.25s ease;
+    }
+    .btn-play-grad:hover {
+      transform: scale(1.06);
+      box-shadow: 0 12px 28px rgba(255, 107, 107, 0.45);
+    }
+
+    /* Vinyl Rotation Animation */
+    @keyframes vinylSpin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .spin-active {
+      animation: vinylSpin 8s linear infinite;
+    }
+    .spin-paused {
+      animation-play-state: paused;
+    }
+
+    /* Equalizer Jumping Bar Animation */
+    @keyframes eqJump {
+      0%, 100% { height: 4px; }
+      50% { height: 16px; }
+    }
+    .eq-bar-1 { animation: eqJump 0.5s ease-in-out infinite; }
+    .eq-bar-2 { animation: eqJump 0.7s ease-in-out infinite 0.1s; }
+    .eq-bar-3 { animation: eqJump 0.6s ease-in-out infinite 0.25s; }
+
+    /* Custom Sliders Styling */
+    input[type=range] {
+      -webkit-appearance: none;
+      background: transparent;
+    }
+    input[type=range]:focus {
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 7px;
+      cursor: pointer;
+      background: #e2e8f0;
+      border-radius: 9999px;
+    }
+    .seek-slider::-webkit-slider-thumb {
+      height: 18px;
+      width: 18px;
+      border-radius: 50%;
+      background: #ff6b6b;
+      border: 3px solid #ffffff;
+      cursor: pointer;
+      -webkit-appearance: none;
+      margin-top: -5.5px;
+      box-shadow: 0 3px 8px rgba(255, 107, 107, 0.4);
+    }
+    .volume-slider::-webkit-slider-thumb {
+      height: 16px;
+      width: 16px;
+      border-radius: 50%;
+      background: #10b981;
+      border: 2.5px solid #ffffff;
+      cursor: pointer;
+      -webkit-appearance: none;
+      margin-top: -4.5px;
+      box-shadow: 0 2px 6px rgba(16, 185, 129, 0.4);
+    }
+
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="flex items-center justify-center p-3 sm:p-6 select-none relative overflow-x-hidden">
+
+  <!-- Ambient Bright Background Blobs -->
+  <div class="fixed top-10 left-10 w-80 h-80 bg-pink-300/30 rounded-full blur-3xl pointer-events-none"></div>
+  <div class="fixed bottom-10 right-10 w-96 h-96 bg-blue-300/30 rounded-full blur-3xl pointer-events-none"></div>
+
+  <!-- Player Outer Main Card -->
+  <div class="w-full max-w-md glass-card rounded-3xl p-5 sm:p-6 relative z-10 my-4">
+
+    <!-- Top Header & Local MP3 Upload -->
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-400 via-rose-400 to-indigo-500 flex items-center justify-center shadow-md text-white font-bold text-xs">
+          <i class="fa-solid fa-radio"></i>
+        </div>
+        <div>
+          <h1 class="font-brand text-lg font-bold text-slate-800 tracking-wide leading-none">TAIWAN SOUND</h1>
+          <span class="text-[10px] text-slate-400 font-semibold tracking-wider uppercase">Live Radio & Music</span>
+        </div>
+      </div>
+
+      <!-- Upload Local Audio Button -->
+      <label class="bright-btn px-3 py-1.5 rounded-full text-xs font-bold text-indigo-600 flex items-center gap-1.5 cursor-pointer hover:bg-indigo-50/50 transition-colors">
+        <i class="fa-solid fa-cloud-arrow-up text-indigo-500"></i>
+        <span>上傳 MP3</span>
+        <input type="file" id="audio-uploader" accept="audio/*" class="hidden" multiple />
+      </label>
+    </div>
+
+    <!-- Tab Switches: Internal Songs vs Taiwan Radio -->
+    <div class="grid grid-cols-2 p-1 bg-slate-200/60 rounded-2xl mb-4 font-semibold text-xs text-slate-500">
+      <button id="tab-music" class="py-2 rounded-xl bg-white text-indigo-600 shadow-sm transition-all duration-200 flex items-center justify-center gap-1.5">
+        <i class="fa-solid fa-music"></i>
+        <span>預設音樂</span>
+      </button>
+      <button id="tab-radio" class="py-2 rounded-xl hover:text-slate-700 transition-all duration-200 flex items-center justify-center gap-1.5">
+        <i class="fa-solid fa-tower-cell text-rose-500"></i>
+        <span>台灣線上電台</span>
+      </button>
+    </div>
+
+    <!-- Central Bright Disc & Visualizer Canvas -->
+    <div class="relative flex flex-col items-center justify-center my-2">
+      <div class="relative w-64 h-64 flex items-center justify-center">
+        
+        <!-- Bright Wave Ripples Canvas -->
+        <canvas id="visualizer-canvas" width="300" height="300" class="absolute inset-0 w-full h-full pointer-events-none z-0"></canvas>
+
+        <!-- Bright Vinyl Disc -->
+        <div id="vinyl-disc" class="w-48 h-48 rounded-full bg-slate-900 border-4 border-slate-200 flex items-center justify-center relative shadow-xl z-10 transition-transform duration-300">
+          <!-- Concentric Ring Lines -->
+          <div class="absolute inset-2 border border-slate-700/60 rounded-full pointer-events-none"></div>
+          <div class="absolute inset-6 border border-slate-700/40 rounded-full pointer-events-none"></div>
+          <div class="absolute inset-10 border border-slate-700/30 rounded-full pointer-events-none"></div>
+          <div class="absolute inset-14 border border-slate-700/20 rounded-full pointer-events-none"></div>
+
+          <!-- Bright Art Center (Basketball Graphic Style) -->
+          <div id="album-cover" class="w-20 h-20 rounded-full bg-gradient-to-tr from-amber-400 via-orange-500 to-rose-500 p-1.5 shadow-lg flex items-center justify-center relative overflow-hidden">
+            <!-- Basketball Seam Patterns -->
+            <div class="w-full h-full rounded-full border-2 border-slate-900/40 flex items-center justify-center relative bg-orange-500">
+              <div class="absolute w-full h-0.5 bg-slate-900/40"></div>
+              <div class="absolute h-full w-0.5 bg-slate-900/40"></div>
+              <div class="w-10 h-10 border-2 border-slate-900/40 rounded-full absolute"></div>
+              <!-- Center Ring -->
+              <div class="w-5 h-5 bg-white rounded-full border-2 border-slate-800 z-10 shadow-md"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Current Playing Info -->
+      <div class="text-center mt-2 z-10 px-4">
+        <h2 id="song-title" class="font-bold text-lg text-slate-800 truncate max-w-[280px] mx-auto">
+          Airball
+        </h2>
+        <p id="song-artist" class="text-xs text-rose-500 font-medium mt-0.5 tracking-wider">
+          Background Music
+        </p>
+      </div>
+    </div>
+
+    <!-- Player Status Panel (Status, Counter, Time) -->
+    <div class="mt-3 glass-pill rounded-2xl p-3 grid grid-cols-3 text-center text-xs relative z-10">
+      <div class="border-r border-slate-300/70">
+        <div class="text-[10px] text-slate-400 font-bold tracking-widest uppercase">狀態</div>
+        <div id="status-text" class="font-bold text-rose-500 mt-0.5">STOPPED</div>
+      </div>
+      <div class="border-r border-slate-300/70">
+        <div class="text-[10px] text-slate-400 font-bold tracking-widest uppercase">曲目/頻道</div>
+        <div id="track-counter" class="font-bold text-indigo-600 mt-0.5">1 / 6</div>
+      </div>
+      <div>
+        <div class="text-[10px] text-slate-400 font-bold tracking-widest uppercase">時間</div>
+        <div id="time-display" class="font-bold text-emerald-600 mt-0.5">0:00</div>
+      </div>
+    </div>
+
+    <!-- Progress Bar (Seek Scrubber) -->
+    <div class="mt-4 px-1 relative z-10">
+      <div class="flex justify-between text-[11px] font-bold text-slate-400 mb-1">
+        <span id="current-time">0:00</span>
+        <span id="total-duration">3:35</span>
+      </div>
+      <input type="range" id="seek-bar" value="0" min="0" max="100" class="seek-slider w-full cursor-pointer">
+    </div>
+
+    <!-- Playback Control Panel Buttons -->
+    <div class="mt-4 flex items-center justify-center gap-2 sm:gap-3 relative z-10">
+      <!-- Previous (⏮) -->
+      <button id="btn-prev" class="bright-btn w-10 h-10 rounded-full flex items-center justify-center text-slate-600 hover:text-indigo-600">
+        <i class="fa-solid fa-backward-step"></i>
+      </button>
+
+      <!-- Fast Rewind 10s (⏪) -->
+      <button id="btn-rewind" class="bright-btn w-9 h-9 rounded-full flex items-center justify-center text-slate-500 hover:text-indigo-600 text-xs">
+        <i class="fa-solid fa-rotate-left"></i>
+      </button>
+
+      <!-- Main Play/Pause Button (▶ / ❚❚) -->
+      <button id="btn-play-pause" class="btn-play-grad w-14 h-14 rounded-full text-white flex items-center justify-center text-xl shadow-lg">
+        <i id="play-icon" class="fa-solid fa-play ml-1"></i>
+      </button>
+
+      <!-- Fast Forward 10s (⏩) -->
+      <button id="btn-ff" class="bright-btn w-9 h-9 rounded-full flex items-center justify-center text-slate-500 hover:text-indigo-600 text-xs">
+        <i class="fa-solid fa-rotate-right"></i>
+      </button>
+
+      <!-- Next (⏭) -->
+      <button id="btn-next" class="bright-btn w-10 h-10 rounded-full flex items-center justify-center text-slate-600 hover:text-indigo-600">
+        <i class="fa-solid fa-forward-step"></i>
+      </button>
+    </div>
+
+    <!-- Independent Stop Button (■ 停止) -->
+    <div class="mt-3 flex justify-center relative z-10">
+      <button id="btn-stop" class="bright-btn px-5 py-1.5 rounded-full text-xs font-bold text-slate-600 hover:text-rose-500 flex items-center gap-1.5">
+        <span class="w-2.5 h-2.5 rounded-sm bg-rose-500 inline-block shadow-sm"></span>
+        <span>■ 停止</span>
+      </button>
+    </div>
+
+    <!-- Volume Scrubber -->
+    <div class="mt-4 glass-pill rounded-2xl p-2.5 flex items-center gap-3 px-3.5 relative z-10">
+      <i id="volume-icon" class="fa-solid fa-volume-high text-emerald-500 text-xs"></i>
+      <input type="range" id="volume-bar" min="0" max="100" value="75" class="volume-slider w-full">
+      <span id="volume-percentage" class="text-xs font-bold text-emerald-600 w-8 text-right">75%</span>
+    </div>
+
+    <!-- Playlist Box Container -->
+    <div class="mt-4 bg-white/80 rounded-2xl border border-slate-200/80 overflow-hidden shadow-sm relative z-10">
+      <div class="bg-slate-100/70 px-3.5 py-2.5 border-b border-slate-200/80 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i id="playlist-header-icon" class="fa-solid fa-music text-rose-500 text-xs"></i>
+          <span id="playlist-header-title" class="font-bold text-xs text-slate-700">播放清單</span>
+        </div>
+        <span id="playlist-count-tag" class="text-[10px] font-bold bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full border border-indigo-100">
+          6 首歌曲
+        </span>
+      </div>
+
+      <!-- Current Playing Highlight Card Top Banner -->
+      <div id="now-playing-banner" class="bg-gradient-to-r from-orange-500/15 via-rose-500/15 to-indigo-500/15 border-b border-rose-200/60 px-3.5 py-2.5 flex items-center justify-between">
+        <div class="flex items-center gap-2.5 min-w-0 flex-1 mr-2">
+          <div class="w-7 h-7 rounded-lg bg-rose-500 text-white flex items-center justify-center shrink-0 shadow-sm text-xs">
+            <i class="fa-solid fa-compact-disc animate-spin" style="animation-duration: 4s;"></i>
+          </div>
+          <div class="flex flex-col min-w-0">
+            <span class="text-[10px] font-bold text-rose-500 tracking-wider uppercase flex items-center gap-1">
+              <span>NOW PLAYING</span>
+              <span id="banner-live-badge" class="hidden text-[9px] bg-rose-500 text-white px-1.5 py-0.2 rounded-full font-bold">LIVE</span>
+            </span>
+            <span id="banner-song-title" class="font-bold text-xs text-slate-800 truncate">Airball</span>
+            <span id="banner-song-artist" class="text-[10px] text-slate-500 font-medium truncate">Background Music</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-1 shrink-0">
+          <div id="banner-eq-bars" class="flex items-end gap-0.5 h-4 px-1 opacity-30">
+            <span class="w-1 bg-rose-500 rounded-full eq-bar-1"></span>
+            <span class="w-1 bg-amber-500 rounded-full eq-bar-2"></span>
+            <span class="w-1 bg-indigo-500 rounded-full eq-bar-3"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scrollable Track / Radio List -->
+      <div id="playlist-container" class="max-h-48 overflow-y-auto divide-y divide-slate-100 text-xs">
+        <!-- Dynamic Track / Radio Items -->
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // 1. Built-in Songs Dataset
+    const musicTracks = [
+      { id: 0, title: "Airball", artist: "Background Music", duration: "3:35", durationSec: 215, type: "music" },
+      { id: 1, title: "Elysees", artist: "French Acoustic Chill", duration: "2:39", durationSec: 159, type: "music" },
+      { id: 2, title: "Moon", artist: "Lo-Fi Beats", duration: "3:41", durationSec: 221, type: "music" },
+      { id: 3, title: "Nothing", artist: "Piano Dreams", duration: "4:06", durationSec: 246, type: "music" },
+      { id: 4, title: "Rain", artist: "Ambient Sound", duration: "3:12", durationSec: 192, type: "music" },
+      { id: 5, title: "Breeze", artist: "Summer Breeze", duration: "2:50", durationSec: 170, type: "music" }
+    ];
+
+    // 2. Taiwan Live Stream Radio Stations Dataset
+    const radioStations = [
+      { id: 0, title: "Classical FM 97.7 台北愛樂", artist: "古典音樂 / 愛樂電台", streamUrl: "https://onair.family977.com.tw:8977/live.mp3", type: "radio" },
+      { id: 1, title: "Bravo FM 91.3 台北都會音樂", artist: "爵士與古典 / Bravo Radio", streamUrl: "https://onair.bravo913.com.tw:9130/live.mp3", type: "radio" },
+      { id: 2, title: "ICRT FM 100", artist: "Taiwan English Radio Station", streamUrl: "https://icrt.icrt.com.tw/live.mp3", type: "radio" },
+      { id: 3, title: "City FM 城市廣播網 (台北 90.1)", artist: "流行音樂 / 城市廣播", streamUrl: "http://fm901.cityfm.tw:8080/901.mp3", type: "radio" },
+      { id: 4, title: "AsiaFM 飛揚調頻 FM 89.5", artist: "懷舊經典流行金曲", streamUrl: "https://stream.rcs.revma.com/e0tdah74hv8uv", type: "radio" },
+      { id: 5, title: "AsiaFM 亞洲電台 FM 92.7", artist: "熱門華語流行榜", streamUrl: "https://stream.rcs.revma.com/xpgtqc74hv8uv", type: "radio" }
+    ];
+
+    // Player State Variables
+    let currentTab = 'music'; // 'music' or 'radio'
+    let currentIndex = 0;
+    let isPlaying = false;
+    let currentTimeSec = 0;
+    let timerInterval = null;
+
+    // Web Audio API & Visualizer Nodes
+    let audioCtx = null;
+    let analyserNode = null;
+    let synthGain = null;
+    let synthInterval = null;
+    let audioSourceNode = null;
+
+    // Custom HTML5 Audio Object for Streams & MP3
+    let audioPlayer = new Audio();
+    audioPlayer.crossOrigin = "anonymous";
+
+    // DOM Elements Caching
+    const canvas = document.getElementById('visualizer-canvas');
+    const ctx = canvas.getContext('2d');
+    const vinylDisc = document.getElementById('vinyl-disc');
+    const songTitle = document.getElementById('song-title');
+    const songArtist = document.getElementById('song-artist');
+    const statusText = document.getElementById('status-text');
+    const trackCounter = document.getElementById('track-counter');
+    const timeDisplay = document.getElementById('time-display');
+    const currentTimeEl = document.getElementById('current-time');
+    const totalDurationEl = document.getElementById('total-duration');
+    const seekBar = document.getElementById('seek-bar');
+    const playIcon = document.getElementById('play-icon');
+    const volumeBar = document.getElementById('volume-bar');
+    const volumePercentage = document.getElementById('volume-percentage');
+    const volumeIcon = document.getElementById('volume-icon');
+    const playlistContainer = document.getElementById('playlist-container');
+    const playlistHeaderIcon = document.getElementById('playlist-header-icon');
+    const playlistHeaderTitle = document.getElementById('playlist-header-title');
+    const playlistCountTag = document.getElementById('playlist-count-tag');
+
+    // Banner Elements DOM
+    const bannerSongTitle = document.getElementById('banner-song-title');
+    const bannerSongArtist = document.getElementById('banner-song-artist');
+    const bannerLiveBadge = document.getElementById('banner-live-badge');
+    const bannerEqBars = document.getElementById('banner-eq-bars');
+
+    const btnPlayPause = document.getElementById('btn-play-pause');
+    const btnStop = document.getElementById('btn-stop');
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
+    const btnRewind = document.getElementById('btn-rewind');
+    const btnFF = document.getElementById('btn-ff');
+    const tabMusic = document.getElementById('tab-music');
+    const tabRadio = document.getElementById('tab-radio');
+    const audioUploader = document.getElementById('audio-uploader');
+
+    // Helper: Format Seconds to MM:SS
+    function formatTime(seconds) {
+      if (isNaN(seconds) || seconds < 0) return "0:00";
+      const m = Math.floor(seconds / 60);
+      const s = Math.floor(seconds % 60);
+      return `${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+
+    // Initialize Web Audio API Nodes
+    function initAudioNodes() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        analyserNode = audioCtx.createAnalyser();
+        analyserNode.fftSize = 64;
+
+        try {
+          audioSourceNode = audioCtx.createMediaElementSource(audioPlayer);
+          audioSourceNode.connect(analyserNode);
+          analyserNode.connect(audioCtx.destination);
+        } catch (e) {
+          // Source already connected
+        }
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    // Stop Synthesizer Tone Generator
+    function stopSynthMelody() {
+      if (synthInterval) {
+        clearInterval(synthInterval);
+        synthInterval = null;
+      }
+      if (synthGain) {
+        try {
+          synthGain.disconnect();
+        } catch (e) {}
+        synthGain = null;
+      }
+    }
+
+    // Audio Synthesizer Tone Generator (For Default Music Demo)
+    function startSynthMelody() {
+      stopSynthMelody();
+      if (!audioCtx) return;
+
+      const volumeVal = volumeBar.value / 100;
+      synthGain = audioCtx.createGain();
+      synthGain.gain.setValueAtTime(volumeVal * 0.12, audioCtx.currentTime);
+
+      if (analyserNode) {
+        synthGain.connect(analyserNode);
+        analyserNode.connect(audioCtx.destination);
+      } else {
+        synthGain.connect(audioCtx.destination);
+      }
+
+      const notes = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25];
+      let noteIdx = 0;
+
+      synthInterval = setInterval(() => {
+        if (!isPlaying || !synthGain) return;
+        try {
+          const osc = audioCtx.createOscillator();
+          const noteGain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(notes[noteIdx % notes.length], audioCtx.currentTime);
+          
+          noteGain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+          noteGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.7);
+
+          osc.connect(noteGain);
+          noteGain.connect(synthGain);
+
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.7);
+
+          noteIdx = (noteIdx + 1) % notes.length;
+        } catch (e) {
+          console.error(e);
+        }
+      }, 500);
+    }
+
+    // Bright Ripples & Wave Canvas Visualizer Loop
+    function drawVisualizer() {
+      requestAnimationFrame(drawVisualizer);
+
+      const width = canvas.width;
+      const height = canvas.height;
+      const centerX = width / 2;
+      const centerY = height / 2;
+
+      ctx.clearRect(0, 0, width, height);
+
+      let bufferLength = 32;
+      let dataArray = new Uint8Array(bufferLength);
+
+      if (analyserNode && isPlaying) {
+        analyserNode.getByteFrequencyData(dataArray);
+      } else {
+        dataArray.fill(0);
+      }
+
+      let sum = 0;
+      for (let i = 0; i < bufferLength; i++) {
+        sum += dataArray[i];
+      }
+      let avgEnergy = sum / bufferLength;
+
+      let baseRadius = 88;
+      let pulseRadius = baseRadius + (avgEnergy * 0.15);
+
+      // Bright Water Ripple Circles
+      if (isPlaying) {
+        let rippleCount = 3;
+        for (let r = 0; r < rippleCount; r++) {
+          let ringRadius = pulseRadius + (r * 16) + ((Date.now() / 15 + r * 20) % 28);
+          let alpha = Math.max(0, 1 - (ringRadius - baseRadius) / 55);
+
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, ringRadius, 0, Math.PI * 2);
+          ctx.strokeStyle = r % 2 === 0 
+            ? `rgba(255, 107, 107, ${alpha * 0.7})` 
+            : `rgba(16, 185, 129, ${alpha * 0.7})`;
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+        }
+      }
+
+      // Circular Equalizer Bars
+      let numBars = 28;
+      let angleStep = (Math.PI * 2) / numBars;
+
+      for (let i = 0; i < numBars; i++) {
+        let value = dataArray[i] || (isPlaying ? Math.sin(i + Date.now() / 200) * 12 + 15 : 0);
+        let barHeight = (value / 255) * 28;
+
+        let angle = i * angleStep;
+        let x1 = centerX + Math.cos(angle) * (baseRadius + 4);
+        let y1 = centerY + Math.sin(angle) * (baseRadius + 4);
+        let x2 = centerX + Math.cos(angle) * (baseRadius + 4 + barHeight);
+        let y2 = centerY + Math.sin(angle) * (baseRadius + 4 + barHeight);
+
+        let gradient = ctx.createLinearGradient(x1, y1, x2, y2);
+        gradient.addColorStop(0, '#ff8e53');
+        gradient.addColorStop(0.5, '#ff6b6b');
+        gradient.addColorStop(1, '#6366f1');
+
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.strokeStyle = gradient;
+        ctx.lineWidth = 3.5;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+      }
+    }
+
+    // Render Playlist (Highlighting Current Track/Radio)
+    function renderPlaylist() {
+      const activeList = currentTab === 'music' ? musicTracks : radioStations;
+      playlistContainer.innerHTML = '';
+      playlistCountTag.textContent = `${activeList.length} ${currentTab === 'music' ? '首歌曲' : '個電台'}`;
+
+      activeList.forEach((item, index) => {
+        const isCurrent = index === currentIndex;
+        const row = document.createElement('div');
+        row.id = `track-item-${index}`;
+        row.className = `flex items-center justify-between px-3.5 py-3 cursor-pointer transition-all duration-200 ${
+          isCurrent 
+            ? 'bg-gradient-to-r from-orange-500/10 via-rose-500/10 to-indigo-500/10 border-l-4 border-rose-500 font-bold text-slate-800' 
+            : 'hover:bg-slate-50 text-slate-600'
+        }`;
+
+        row.innerHTML = `
+          <div class="flex items-center gap-3 truncate">
+            <div class="w-5 flex justify-center items-center text-[11px] font-bold text-slate-400">
+              ${isCurrent && isPlaying ? `
+                <div class="flex items-end gap-0.5 h-4">
+                  <span class="w-1 bg-rose-500 rounded-full eq-bar-1"></span>
+                  <span class="w-1 bg-amber-500 rounded-full eq-bar-2"></span>
+                  <span class="w-1 bg-indigo-500 rounded-full eq-bar-3"></span>
+                </div>
+              ` : `<span>${(index + 1).toString().padStart(2, '0')}</span>`}
+            </div>
+
+            <div class="flex flex-col truncate">
+              <span class="truncate ${isCurrent ? 'text-rose-600 font-bold' : ''}">${item.title}</span>
+              <span class="text-[10px] text-slate-400 font-normal truncate">${item.artist}</span>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            ${isCurrent ? `
+              <span class="text-[9px] font-bold bg-rose-500 text-white px-2 py-0.5 rounded-full shadow-sm animate-pulse">
+                ${currentTab === 'radio' ? '🔴 LIVE' : (isPlaying ? '播放中' : '已暫停')}
+              </span>
+            ` : ''}
+            <span class="text-[10px] text-slate-400 font-medium">${item.duration || '直播'}</span>
+          </div>
+        `;
+
+        row.addEventListener('click', () => {
+          selectTrack(index);
+          playAudio();
+        });
+
+        playlistContainer.appendChild(row);
+      });
+    }
+
+    // Sync Main UI Info & Top Banner
+    function updatePlayerUI() {
+      const activeList = currentTab === 'music' ? musicTracks : radioStations;
+      const track = activeList[currentIndex];
+
+      songTitle.textContent = track.title;
+      songArtist.textContent = track.artist;
+      trackCounter.textContent = `${currentIndex + 1} / ${activeList.length}`;
+
+      // Update Top Banner of Playlist
+      bannerSongTitle.textContent = track.title;
+      bannerSongArtist.textContent = track.artist;
+
+      if (currentTab === 'radio') {
+        totalDurationEl.textContent = "LIVE 串流";
+        seekBar.disabled = true;
+        seekBar.value = 100;
+        bannerLiveBadge.classList.remove('hidden');
+      } else {
+        totalDurationEl.textContent = track.duration;
+        seekBar.disabled = false;
+        seekBar.max = track.durationSec;
+        bannerLiveBadge.classList.add('hidden');
+      }
+
+      if (isPlaying) {
+        bannerEqBars.classList.remove('opacity-30');
+      } else {
+        bannerEqBars.classList.add('opacity-30');
+      }
+
+      renderPlaylist();
+    }
+
+    // Play Action
+    function playAudio() {
+      initAudioNodes();
+      const activeList = currentTab === 'music' ? musicTracks : radioStations;
+      const track = activeList[currentIndex];
+
+      isPlaying = true;
+      statusText.textContent = currentTab === 'radio' ? "🔴 LIVE" : "PLAYING";
+      playIcon.className = "fa-solid fa-pause";
+      vinylDisc.classList.add('spin-active');
+      vinylDisc.classList.remove('spin-paused');
+      if (bannerEqBars) bannerEqBars.classList.remove('opacity-30');
+
+      if (currentTab === 'radio') {
+        stopSynthMelody();
+        audioPlayer.src = track.streamUrl;
+        audioPlayer.volume = volumeBar.value / 100;
+        audioPlayer.play().catch(err => {
+          console.warn("Direct stream play notice, playing synthesized melody fallback", err);
+          startSynthMelody();
+        });
+      } else {
+        if (track.type === 'custom') {
+          stopSynthMelody();
+          audioPlayer.src = track.url;
+          audioPlayer.currentTime = currentTimeSec;
+          audioPlayer.volume = volumeBar.value / 100;
+          audioPlayer.play();
+        } else {
+          audioPlayer.pause();
+          startSynthMelody();
+        }
+      }
+
+      startTimer();
+      renderPlaylist();
+    }
+
+    // Pause Action
+    function pauseAudio() {
+      isPlaying = false;
+      statusText.textContent = "PAUSED";
+      playIcon.className = "fa-solid fa-play ml-1";
+      vinylDisc.classList.add('spin-paused');
+      if (bannerEqBars) bannerEqBars.classList.add('opacity-30');
+
+      stopSynthMelody();
+      audioPlayer.pause();
+      stopTimer();
+      renderPlaylist();
+    }
+
+    // Stop Action
+    function stopAudio() {
+      isPlaying = false;
+      currentTimeSec = 0;
+      statusText.textContent = "STOPPED";
+      playIcon.className = "fa-solid fa-play ml-1";
+      vinylDisc.classList.remove('spin-active', 'spin-paused');
+      if (bannerEqBars) bannerEqBars.classList.add('opacity-30');
+
+      stopSynthMelody();
+      audioPlayer.pause();
+      audioPlayer.currentTime = 0;
+      stopTimer();
+
+      updateTimeDisplays();
+      renderPlaylist();
+    }
+
+    // Timer Interval
+    function startTimer() {
+      stopTimer();
+      timerInterval = setInterval(() => {
+        const activeList = currentTab === 'music' ? musicTracks : radioStations;
+        const track = activeList[currentIndex];
+
+        if (currentTab === 'radio') {
+          currentTimeSec++;
+          timeDisplay.textContent = formatTime(currentTimeSec);
+          currentTimeEl.textContent = "🔴 LIVE";
+        } else {
+          if (currentTimeSec < track.durationSec) {
+            currentTimeSec++;
+            updateTimeDisplays();
+          } else {
+            nextTrack();
+          }
+        }
+      }, 1000);
+    }
+
+    function stopTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+    }
+
+    function updateTimeDisplays() {
+      const formatted = formatTime(currentTimeSec);
+      timeDisplay.textContent = formatted;
+      currentTimeEl.textContent = formatted;
+      if (currentTab === 'music') {
+        seekBar.value = currentTimeSec;
+      }
+    }
+
+    function selectTrack(index) {
+      stopAudio();
+      currentIndex = index;
+      currentTimeSec = 0;
+      updatePlayerUI();
+    }
+
+    function prevTrack() {
+      const activeList = currentTab === 'music' ? musicTracks : radioStations;
+      let newIndex = currentIndex - 1;
+      if (newIndex < 0) newIndex = activeList.length - 1;
+      selectTrack(newIndex);
+      playAudio();
+    }
+
+    function nextTrack() {
+      const activeList = currentTab === 'music' ? musicTracks : radioStations;
+      let newIndex = (currentIndex + 1) % activeList.length;
+      selectTrack(newIndex);
+      playAudio();
+    }
+
+    // Tab Switching Handlers
+    tabMusic.addEventListener('click', () => {
+      if (currentTab === 'music') return;
+      currentTab = 'music';
+      tabMusic.className = "py-2 rounded-xl bg-white text-indigo-600 shadow-sm transition-all duration-200 flex items-center justify-center gap-1.5";
+      tabRadio.className = "py-2 rounded-xl hover:text-slate-700 transition-all duration-200 flex items-center justify-center gap-1.5";
+      playlistHeaderIcon.className = "fa-solid fa-music text-rose-500 text-xs";
+      playlistHeaderTitle.textContent = "播放清單";
+      selectTrack(0);
+    });
+
+    tabRadio.addEventListener('click', () => {
+      if (currentTab === 'radio') return;
+      currentTab = 'radio';
+      tabRadio.className = "py-2 rounded-xl bg-white text-rose-600 shadow-sm transition-all duration-200 flex items-center justify-center gap-1.5";
+      tabMusic.className = "py-2 rounded-xl hover:text-slate-700 transition-all duration-200 flex items-center justify-center gap-1.5";
+      playlistHeaderIcon.className = "fa-solid fa-tower-cell text-rose-500 text-xs";
+      playlistHeaderTitle.textContent = "台灣廣播電台直播";
+      selectTrack(0);
+    });
+
+    // Control Button Listeners
+    btnPlayPause.addEventListener('click', () => {
+      if (isPlaying) {
+        pauseAudio();
+      } else {
+        playAudio();
+      }
+    });
+
+    btnStop.addEventListener('click', stopAudio);
+    btnPrev.addEventListener('click', prevTrack);
+    btnNext.addEventListener('click', nextTrack);
+
+    btnRewind.addEventListener('click', () => {
+      if (currentTab === 'radio') return;
+      currentTimeSec = Math.max(0, currentTimeSec - 10);
+      if (musicTracks[currentIndex].type === 'custom') {
+        audioPlayer.currentTime = currentTimeSec;
+      }
+      updateTimeDisplays();
+    });
+
+    btnFF.addEventListener('click', () => {
+      if (currentTab === 'radio') return;
+      const track = musicTracks[currentIndex];
+      currentTimeSec = Math.min(track.durationSec, currentTimeSec + 10);
+      if (musicTracks[currentIndex].type === 'custom') {
+        audioPlayer.currentTime = currentTimeSec;
+      }
+      updateTimeDisplays();
+    });
+
+    // Seek Scrubber
+    seekBar.addEventListener('input', (e) => {
+      if (currentTab === 'radio') return;
+      currentTimeSec = parseInt(e.target.value, 10);
+      if (musicTracks[currentIndex].type === 'custom') {
+        audioPlayer.currentTime = currentTimeSec;
+      }
+      updateTimeDisplays();
+    });
+
+    // Volume Control
+    volumeBar.addEventListener('input', (e) => {
+      const val = e.target.value;
+      volumePercentage.textContent = `${val}%`;
+      audioPlayer.volume = val / 100;
+
+      if (synthGain && audioCtx) {
+        synthGain.gain.setValueAtTime((val / 100) * 0.12, audioCtx.currentTime);
+      }
+
+      if (val == 0) {
+        volumeIcon.className = "fa-solid fa-volume-xmark text-slate-400 text-xs";
+      } else if (val < 50) {
+        volumeIcon.className = "fa-solid fa-volume-low text-emerald-500 text-xs";
+      } else {
+        volumeIcon.className = "fa-solid fa-volume-high text-emerald-500 text-xs";
+      }
+    });
+
+    // Local MP3 File Upload Listener
+    audioUploader.addEventListener('change', (e) => {
+      const files = Array.from(e.target.files);
+      if (files.length === 0) return;
+
+      files.forEach(file => {
+        const url = URL.createObjectURL(file);
+        const tempAudio = new Audio(url);
+
+        tempAudio.onloadedmetadata = () => {
+          const durationSec = Math.floor(tempAudio.duration) || 180;
+          const durationFormatted = formatTime(durationSec);
+
+          const customTrack = {
+            id: musicTracks.length,
+            title: file.name.replace(/\.[^/.]+$/, ""),
+            artist: "自訂上傳歌曲",
+            duration: durationFormatted,
+            durationSec: durationSec,
+            type: "custom",
+            url: url
+          };
+
+          musicTracks.push(customTrack);
+          if (currentTab === 'music') {
+            updatePlayerUI();
+          }
+        };
+      });
+    });
+
+    // Startup Initialization
+    window.onload = () => {
+      updatePlayerUI();
+      drawVisualizer();
+    };
+  </script>
+</body>
+</html>
